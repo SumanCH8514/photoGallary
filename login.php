@@ -1,69 +1,58 @@
 <?php
-// login.php
+session_start(); // Start the session
+require "db.php"; // Include database connection file
 
-session_start();
-
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "photo_gallery";
-
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+// Login handling
+if (isset($_POST['login'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // Fetch user from the database
-    $stmt = $conn->prepare("SELECT id, password FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
+    // Replace with your actual login logic (e.g., database query)
+    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? AND password = ?"); // Prepared statement
+    $stmt->bind_param("ss", $username, $password); // Bind parameters
     $stmt->execute();
-    $stmt->store_result();
-    $stmt->bind_result($id, $hashed_password);
+    $result = $stmt->get_result();
 
-    if ($stmt->fetch() && password_verify($password, $hashed_password)) {
-        $_SESSION['user_id'] = $id;
-        $_SESSION['username'] = $username;
-        header("Location: upload.php");
-        exit();
+    if ($result->num_rows == 1) {
+        $_SESSION['loggedin'] = true;
+        $_SESSION['username'] = $username; // Store username in session
+        header("Location: upload.php"); // Redirect to upload page
+        exit(); // Important: Stop further execution
     } else {
-        echo "Invalid username or password.";
+        $error = "Incorrect username or password.";
     }
-
     $stmt->close();
+}
+
+// Check if user is logged in
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+    // Redirect to login page or display login form
+?>
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+        <title>Login</title>
+    </head>
+
+    <body>
+        <h2>Login</h2>
+        <?php if (isset($error)) echo "<p style='color: red;'>$error</p>"; ?>
+        <form method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
+            Username: <input type="text" name="username" required><br>
+            Password: <input type="password" name="password" required><br>
+            <input type="submit" name="login" value="Login">
+        </form>
+    </body>
+
+    </html>
+<?php
+    exit(); // Stop further execution on the login page
 }
 
 $conn->close();
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-
-<body>
-    <h1>Login</h1>
-    <form method="POST" action="login.php">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required>
-        <br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
-        <br>
-        <button type="submit">Login</button>
-    </form>
-    <p>Don't have an account? <a href="register.php">Register here</a></p>
-</body>
-
-</html>
