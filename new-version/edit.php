@@ -21,6 +21,15 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+
+$user_id = $_SESSION['user_id'];
+$user_role = $_SESSION['role']; // Get user role from session
+
+$username = mysqli_query($conn, "SELECT username FROM users WHERE id = '$user_id'");
+$username = mysqli_fetch_assoc($username);
+$username = $username['username'];
+
+
 // Fetch categories from the database
 $categories = [];
 $sql = "SELECT id, name FROM categories";
@@ -34,11 +43,17 @@ if ($result->num_rows > 0) {
 // Handle search
 $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
 $photos = [];
-$sql = "SELECT photos.id, photos.image_url, photos.name, photos.category_id, categories.name AS category_name 
+$sql = "SELECT photos.id, photos.image_url, photos.name, photos.category_id, photos.user_id, categories.name AS category_name 
         FROM photos 
         LEFT JOIN categories ON photos.category_id = categories.id 
-        WHERE photos.name LIKE '%" . $conn->real_escape_string($search_query) . "%' 
-        ORDER BY photos.uploaded_at DESC";
+        WHERE photos.name LIKE '%" . $conn->real_escape_string($search_query) . "%'";
+
+// Restrict photos based on role
+if ($user_role === 'user') {
+    $sql .= " AND photos.user_id = $user_id"; // Only show user's photos
+}
+
+$sql .= " ORDER BY photos.uploaded_at DESC";
 $result = $conn->query($sql);
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
@@ -51,27 +66,44 @@ $error = "";
 $success = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (isset($_POST['delete'])) {
-        $photo_id = intval($_POST['photo_id']);
-        $stmt = $conn->prepare("DELETE FROM photos WHERE id = ?");
-        $stmt->bind_param("i", $photo_id);
-        if ($stmt->execute()) {
-            $success = "Photo deleted successfully.";
-        } else {
-            $error = "Error deleting photo.";
+    $photo_id = intval($_POST['photo_id']);
+
+    // Fetch photo details to verify ownership
+    $stmt = $conn->prepare("SELECT user_id FROM photos WHERE id = ?");
+    $stmt->bind_param("i", $photo_id);
+    $stmt->execute();
+    $stmt->store_result();
+    $stmt->bind_result($photo_user_id);
+    $stmt->fetch();
+    $stmt->close();
+
+    // Check if user is authorized
+    if ($user_role === 'admin' || ($user_role === 'user' && $photo_user_id === $user_id)) {
+        if (isset($_POST['delete'])) {
+            // Delete the photo
+            $stmt = $conn->prepare("DELETE FROM photos WHERE id = ?");
+            $stmt->bind_param("i", $photo_id);
+            if ($stmt->execute()) {
+                $success = "Photo deleted successfully.";
+            } else {
+                $error = "Error deleting photo.";
+            }
+            $stmt->close();
+        } elseif (isset($_POST['update'])) {
+            // Update the photo category
+            $new_category_id = intval($_POST['category_id']);
+            $stmt = $conn->prepare("UPDATE photos SET category_id = ? WHERE id = ?");
+            $stmt->bind_param("ii", $new_category_id, $photo_id);
+            if ($stmt->execute()) {
+                $success = "Category updated successfully.";
+                header("edit.php");
+            } else {
+                $error = "Error updating category.";
+            }
+            $stmt->close();
         }
-        $stmt->close();
-    } elseif (isset($_POST['update'])) {
-        $photo_id = intval($_POST['photo_id']);
-        $new_category_id = intval($_POST['category_id']);
-        $stmt = $conn->prepare("UPDATE photos SET category_id = ? WHERE id = ?");
-        $stmt->bind_param("ii", $new_category_id, $photo_id);
-        if ($stmt->execute()) {
-            $success = "Category updated successfully.";
-        } else {
-            $error = "Error updating category.";
-        }
-        $stmt->close();
+    } else {
+        $error = "You are not authorized to perform this action.";
     }
 }
 
@@ -84,46 +116,37 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Photos | Admin Panel | SumanOnline.Com</title>
-    <link rel="stylesheet" href="../css/edit.css">
+    <title>Edit Photo Gallery | SumanOnline.Com</title>
+    <link rel="stylesheet" href="./css/edit.css">
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="apple-touch-icon" sizes="57x57" href="../fav/apple-icon-57x57.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="../fav/apple-icon-60x60.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="../fav/apple-icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="../fav/apple-icon-76x76.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="../fav/apple-icon-114x114.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="../fav/apple-icon-120x120.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="../fav/apple-icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="../fav/apple-icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../fav/apple-icon-180x180.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="../fav/android-icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="../fav/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="../fav/favicon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../fav/favicon-16x16.png">
-    <link rel="manifest" href="../fav/manifest.json">
-    <meta name="msapplication-TileColor" content="#ffffff">
-    <meta name="msapplication-TileImage" content="../fav/ms-icon-144x144.png">
-    <meta name="theme-color" content="#ffffff">
 </head>
 
 <body>
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.php">Edit Photo Gallery | SumanOnline.Com</a>
+            <a href="./index.php">Edit Photo Gallery | SumanOnline.Com</a>
             <button class="navbar-toggle" aria-label="Toggle navigation">
                 <i class="fas fa-bars"></i>
             </button>
+
         </div>
+
         <div class="navbar-links">
-            <a href="index.php">Home</a>
-            <a href="upload.php">Upload</a>
-            <a href="edit.php">Edit</a>
-            <a href="logout.php">Logout</a>
+            <h3 style="margin: 0; color: white;">
+                <?php
+                echo "❤️‍🩹Welcome, $username!";
+                ?></h3>
+            <a href="./index.php">🏡Home</a>
+            <a href="./upload.php">🏞️Upload Image</a>
+            <?php if ($user_role === 'admin'): ?>
+                <a href="./edit.php">⚙️Edit</a>
+            <?php endif; ?>
+
+            <a href="./admin/logout.php">❌Logout</a>
         </div>
     </nav>
-
     <div class="edit-container">
         <h1>Edit Photos</h1>
         <?php if (!empty($error)): ?>
@@ -167,7 +190,6 @@ $conn->close();
             <?php endif; ?>
         </div>
     </div>
-
     <!-- JavaScript for Navbar Toggle -->
     <script>
         document.querySelector('.navbar-toggle').addEventListener('click', function() {

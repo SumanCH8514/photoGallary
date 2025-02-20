@@ -23,16 +23,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST['password'];
 
     // Fetch user from the database
-    $stmt = $conn->prepare("SELECT id, password FROM users WHERE username = ?");
+    $stmt = $conn->prepare("SELECT id, password, role FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $stmt->store_result();
-    $stmt->bind_result($id, $hashed_password);
+    $stmt->bind_result($id, $hashed_password, $role);
 
     if ($stmt->fetch() && password_verify($password, $hashed_password)) {
         $_SESSION['user_id'] = $id;
         $_SESSION['username'] = $username;
-        header("Location: index.php");
+        $_SESSION['role'] = $role; // Store role in session
+        header("Location: ../index.php");
         exit();
     } else {
         $error = "Invalid username or password.";

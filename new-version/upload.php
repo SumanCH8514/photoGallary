@@ -4,22 +4,16 @@
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: ./admin/login.php");
     exit();
 }
-
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "photo_gallery";
-
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-
+require "./admin/db.php";
 // Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
+
+$user_id = $_SESSION['user_id']; // Get user ID from session
 
 // Fetch categories from the database
 $categories = [];
@@ -39,7 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $category_id = intval($_POST['category_id']);
 
     if ($upload_method == "file_upload") {
-        // Handle multiple file uploads
+        // Handle file upload
         if (isset($_FILES['image_files']) && !empty($_FILES['image_files']['name'][0])) {
             $uploaded_files = $_FILES['image_files'];
             $total_files = count($uploaded_files['name']);
@@ -56,11 +50,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         // Move the file to the uploads directory
                         if (move_uploaded_file($uploaded_files['tmp_name'][$i], $target_file)) {
                             $image_url = $target_file;
-                            $photo_name = pathinfo($uploaded_files['name'][$i], PATHINFO_FILENAME); // Extract filename without extension
+                            $photo_name = pathinfo($uploaded_files['name'][$i], PATHINFO_FILENAME);
 
-                            // Insert the image URL, name, and category into the database
-                            $stmt = $conn->prepare("INSERT INTO photos (image_url, name, category_id) VALUES (?, ?, ?)");
-                            $stmt->bind_param("ssi", $image_url, $photo_name, $category_id);
+                            // Insert the image URL, name, category, and user ID into the database
+                            $stmt = $conn->prepare("INSERT INTO photos (image_url, name, category_id, user_id) VALUES (?, ?, ?, ?)");
+                            $stmt->bind_param("ssii", $image_url, $photo_name, $category_id, $user_id);
 
                             if ($stmt->execute()) {
                                 $upload_success = "All images uploaded successfully.";
@@ -91,11 +85,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Extract filename from URL
             $parsed_url = parse_url($image_url);
             $path = $parsed_url['path'];
-            $photo_name = pathinfo($path, PATHINFO_FILENAME); // Extract filename without extension
+            $photo_name = pathinfo($path, PATHINFO_FILENAME);
 
-            // Insert the image URL, name, and category into the database
-            $stmt = $conn->prepare("INSERT INTO photos (image_url, name, category_id) VALUES (?, ?, ?)");
-            $stmt->bind_param("ssi", $image_url, $photo_name, $category_id);
+            // Insert the image URL, name, category, and user ID into the database
+            $stmt = $conn->prepare("INSERT INTO photos (image_url, name, category_id, user_id) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("ssii", $image_url, $photo_name, $category_id, $user_id);
 
             if ($stmt->execute()) {
                 $upload_success = "Image uploaded successfully.";
@@ -108,6 +102,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 
+// Query to retrieve the username from the database
+$username = mysqli_query($conn, "SELECT username FROM users WHERE id = '$user_id'");
+
+// Fetch the username from the query result
+$username = mysqli_fetch_assoc($username);
+$username = $username['username'];
+
 $conn->close();
 ?>
 
@@ -118,7 +119,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Photo | SumanOnline.Com</title>
-    <link rel="stylesheet" href="../css/admin.css">
+    <link rel="stylesheet" href="./css/admin.css">
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="apple-touch-icon" sizes="57x57" href="../fav/apple-icon-57x57.png">
@@ -144,16 +145,19 @@ $conn->close();
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.php">Photo Gallery</a>
+            <a href="index.php">SumanPhotoGallery | Admin</a>
             <button class="navbar-toggle" aria-label="Toggle navigation">
                 <i class="fas fa-bars"></i>
             </button>
         </div>
         <div class="navbar-links">
-            <a href="../">Home</a>
-            <a href="../index.php">View Gallery</a>
-            <a href="edit.php">Edit Table</a>
-            <a href="logout.php">Logout</a>
+            <h3 style="margin: 0; color: white;">
+                <?php
+                echo "❤️‍🩹Welcome, $username!";
+                ?></h3>
+            <a href="./index.php">🏞️View Gallery</a>
+            <a href="./edit.php">⚙️Edit Table</a>
+            <a href="./admin/logout.php">❌Logout</a>
         </div>
     </nav>
     <div class="line">
@@ -216,6 +220,11 @@ $conn->close();
                 imageUrl.style.display = "block";
             }
         }
+    </script>
+    <script>
+        document.querySelector('.navbar-toggle').addEventListener('click', function() {
+            document.querySelector('.navbar-links').classList.toggle('active');
+        });
     </script>
 
     <div id="footer">

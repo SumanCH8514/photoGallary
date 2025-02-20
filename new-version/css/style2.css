@@ -12,11 +12,18 @@ h1 {
   text-align: center;
   margin: 20px 0;
 }
-.mainlink {
-  /* border: 1px solid black; */
-  padding: 0;
-  margin: 0;
-  background: #8d8c8c;
+#main {
+  background-color: #f4f4f4;
+  padding: 10px;
+  border: 1px solid #333;
+  text-align: center;
+  width: 50%;
+  margin: 20px auto;
+  border-radius: 10px;
+}
+#main h1 {
+  text-align: center;
+  margin-top: 50px;
 }
 
 /* Navbar Styles */
@@ -101,6 +108,10 @@ h1 {
   display: flex;
   flex-direction: column;
 }
+.masonry-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
 
 .masonry-item img {
   width: 100%;
@@ -108,7 +119,16 @@ h1 {
   object-fit: cover; /* Ensure images fill the container */
   display: block;
 }
-
+.masonry-item img:hover {
+  -webkit-transform: scale(1.16);
+  /* transform: scale(1.16); */
+  transform: scale(1.2);
+}
+img {
+  overflow-clip-margin: content-box;
+  overflow: clip;
+  transition: transform 0.2s ease-in-out;
+}
 .download-button {
   display: block;
   text-align: center;
@@ -180,8 +200,14 @@ h1 {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 400px) {
   .masonry-gallery {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .masonry-item img {
+    width: 100%;
+    height: 200px; /* Fixed height for all images */
+    object-fit: cover; /* Ensure images fill the container */
+    display: block;
   }
 }

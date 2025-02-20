@@ -1,4 +1,5 @@
 <?php
+session_start();
 require "./admin/db.php";
 // Check connection
 if ($conn->connect_error) {
@@ -26,6 +27,7 @@ if ($category_id) {
 $sql .= " ORDER BY photos.uploaded_at DESC";
 $result = $conn->query($sql);
 
+
 $conn->close();
 ?>
 
@@ -37,7 +39,7 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Photo Gallery App | SumanOnline.Com</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/style2.css">
+    <link rel="stylesheet" href="./css/style2.css">
     <link rel="apple-touch-icon" sizes="57x57" href="fav/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="fav/apple-icon-60x60.png">
     <link rel="apple-touch-icon" sizes="72x72" href="fav/apple-icon-72x72.png">
@@ -61,16 +63,23 @@ $conn->close();
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.php">Photo Gallery</a>
+            <a href="./index.php">SumanPhotoGallery</a>
             <button class="navbar-toggle" aria-label="Toggle navigation">
                 <i class="fas fa-bars"></i>
             </button>
         </div>
         <div class="navbar-links">
-            <a href="index.php">Home</a>
-            <a href="./admin/">Upload</a>
-            <a href="./admin/">Admin</a>
-            <form method="GET" action="index.php" class="category-filter">
+            <h3 style="margin: 0; color: white;">
+                <?php
+                if (isset($_SESSION['username'])) {
+                    echo "❤️‍🩹Welcome, " . $_SESSION['username'];
+                }
+
+                ?></h3>
+            <a href="index.php">🏡Home</a>
+            <a href="upload.php">🏞️Upload Photos</a>
+            <a href="upload.php">⚙️Admin Panel</a>
+            <form method="GET" action="upload.php" class="category-filter">
                 <label for="category_id">Filter by Category:</label>
                 <select id="category_id" name="category_id" onchange="this.form.submit()">
                     <option value="">All Categories</option>
@@ -81,14 +90,18 @@ $conn->close();
                     <?php endforeach; ?>
                 </select>
             </form>
+            <?php if (isset($_SESSION['username'])) {
+                echo "<a href='./admin/logout.php'>❌Logout</a>";
+            } else {
+                echo "<a href='./admin/login.php'>◀️Login</a>";
+            }
+            ?>
         </div>
     </nav>
 
-    <div class="mainlink">
-        <h1>Photo Gallery</h1>
-    </div>
+    <h1 id="main">Photo Gallery</h1>
 
-
+    <!-- . "admin/"  this if if uploads folder changes-->
     <!-- grid Layout -->
     <div class="masonry-gallery">
         <?php
@@ -96,8 +109,8 @@ $conn->close();
             while ($row = $result->fetch_assoc()) {
                 echo '<div class="masonry-item">
                         <p style="text-align: center; id="chata"><b>Category:</b> ' . $row['category_name'] . '</p>
-                         <img src="' . "admin/" . $row['image_url'] . '" alt="' . $row['name'] . '">
-                        <a href="' . "admin/" . $row['image_url'] . '" download class="download-button"><b>Download Image</b></a>
+                         <img src="' . $row['image_url'] . '" alt="' . $row['name'] . '">
+                        <a href="' . $row['image_url'] . '" download class="download-button"><b>Download Image</b></a>
                       </div>';
             }
         } else {
@@ -123,7 +136,6 @@ $conn->close();
         </p>
 
     </div>
-    <!-- JavaScript for Responsive Navbar -->
     <script>
         document.querySelector('.navbar-toggle').addEventListener('click', function() {
             document.querySelector('.navbar-links').classList.toggle('active');
